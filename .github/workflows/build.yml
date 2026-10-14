@@ -1,43 +1,43 @@
-{
-      "name": "Fast APK Build & Release",
-        "on": ["push", "workflow_dispatch"],
-          "permissions": {
-              "contents": "write"
-                },
-                  "jobs": {
-                      "build": {
-                            "runs-on": "ubuntu-latest",
-                                  "steps": [
-                                          {
-                                                    "name": "1. 拉取程式碼",
-                                                              "uses": "actions/checkout@v4"
-                                                                      },
-                                                                              {
-                                                                                        "name": "2. 極速四步編譯與簽名 (免 Gradle)",
-                                                                                                  "run": "BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)\nPLATFORM=$ANDROID_HOME/platforms/android-34/android.jar\nmkdir -p build/gen build/classes\n$BUILD_TOOLS/aapt2 link -o build/unsigned.apk --manifest AndroidManifest.xml -I $PLATFORM --java build/gen\nkotlinc MainActivity.kt build/gen/com/example/minimal/R.java -cp $PLATFORM -d build/classes\nKOTLIN_STDLIB=$(find / -name \"kotlin-stdlib.jar\" 2>/dev/null | head -n 1)\n$BUILD_TOOLS/d8 build/classes/com/example/minimal/*.class $KOTLIN_STDLIB --lib $PLATFORM --output build/\ncd build && zip -q -u unsigned.apk classes.dex && cd ..\nkeytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname \"CN=Android Debug,O=Android,C=US\"\n$BUILD_TOOLS/apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out MinimalUI.apk build/unsigned.apk\n"
-                                                                                                          },
-                                                                                                                  {
-                                                                                                                            "name": "3. 備份到 Artifacts",
-                                                                                                                                      "uses": "actions/upload-artifact@v4",
-                                                                                                                                                "with": {
-                                                                                                                                                            "name": "MinimalUI-APK",
-                                                                                                                                                                        "path": "MinimalUI.apk"
-                                                                                                                                                                                  }
-                                                                                                                                                                                          },
-                                                                                                                                                                                                  {
-                                                                                                                                                                                                            "name": "4. 自動發佈到 GitHub Releases",
-                                                                                                                                                                                                                      "uses": "softprops/action-gh-release@v2",
-                                                                                                                                                                                                                                "with": {
-                                                                                                                                                                                                                                            "tag_name": "latest",
-                                                                                                                                                                                                                                                        "name": "📱 最新版 APK 直連下載 (Build #${{ github.run_number }})",
-                                                                                                                                                                                                                                                                    "files": "MinimalUI.apk",
-                                                                                                                                                                                                                                                                                "prerelease": false,
-                                                                                                                                                                                                                                                                                            "make_latest": true
-                                                                                                                                                                                                                                                                                                      }
-                                                                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                                                                                    ]
-                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                          }
-                                                                                                                                                                                                                                                                                                                          }
-                                                                                                                                                                                                                                                                                                                          
-}
+name: Fast APK Build & Release
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 拉取程式碼
+        uses: actions/checkout@v4
+
+      - name: 2. 極速四步編譯與簽名 (免 Gradle)
+        run: |
+          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
+          PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
+          mkdir -p build/gen build/classes
+          $BUILD_TOOLS/aapt2 link -o build/unsigned.apk --manifest AndroidManifest.xml -I $PLATFORM --java build/gen
+          kotlinc MainActivity.kt build/gen/com/example/minimal/R.java -cp $PLATFORM -d build/classes
+          KOTLIN_STDLIB=$(find / -name "kotlin-stdlib.jar" 2>/dev/null | head -n 1)
+          $BUILD_TOOLS/d8 build/classes/com/example/minimal/*.class $KOTLIN_STDLIB --lib $PLATFORM --output build/
+          cd build && zip -q -u unsigned.apk classes.dex && cd ..
+          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          $BUILD_TOOLS/apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out MinimalUI.apk build/unsigned.apk
+
+      - name: 3. 備份到 Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MinimalUI-APK
+          path: MinimalUI.apk
+
+      - name: 4. 自動發佈到 GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "📱 最新版 APK 直連下載 (Build #${{ github.run_number }})"
+          files: MinimalUI.apk
+          prerelease: false
+          make_latest: true
